@@ -36,7 +36,3 @@ export function buildSculpture(segments = 384, sides = 96): Float32Array {
   }
   return data;
 }
-
-export function revealPosition(time: number, pointer: number | null, reduced: boolean): number {
-  return pointer === null ? (reduced ? 0.5 : 0.5 + 0.28*Math.sin(time*0.19)) : Math.max(0,Math.min(1,pointer));
-}
