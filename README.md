@@ -1,27 +1,21 @@
-# shaders
+# shader reveal
 
-an interactive five-stage rendering walkthrough, built with react, vite and vgpu.
+one fullscreen vgpu sculpture. a slow reveal turns a blueprint wireframe into iridescent metal. no visible interface.
 
 ```sh
 npm install
 npm run dev
 ```
 
-- input assembly: points, connected triangles and wireframe. click the sculpture to select a triangle and inspect its vertices.
-- vertex shader: adjust camera yaw/elevation and follow a selected vertex from object coordinates into screen uv coordinates.
-- rasterization: enlarge that projected triangle and adjust the center-sample coverage grid from 8 × 8 to 64 × 64.
-- fragment shader: compare normal colors, direct lighting, reflected studio lights and iridescence; adjust roughness and film strength.
-- output merger: toggle actual gpu depth testing and alpha blending.
+move your pointer or touch the canvas to position the reveal. when the pointer leaves, the automatic sweep resumes. focus the canvas and use arrow keys for keyboard control; escape resumes the sweep. reduced motion freezes the automatic animation.
 
-stage tabs and left/right keys navigate. range controls retain their normal keyboard behavior. the canvas uses the native cursor; mouse movement changes the light in the material and output views.
-
-the input/projection views use a lower-resolution inspection mesh of the same sculpted surface for readable triangle selection. rasterization is an enlarged svg coverage illustration using barycentric center tests; it does not read back the browser's exact msaa coverage or edge tie-breaking. the final sculpture uses 98,304 triangles, analytic per-fragment normals, filtered procedural studio reflections and two-sided alpha transmission. transparency is a lightweight shell approximation, without refraction through a captured scene or order-independent blending.
+requires a browser with webgpu and hardware acceleration enabled. unsupported devices report the failure through the canvas accessible description and browser console.
 
 ```sh
 npm test
 npm run build
 ```
 
-requires webgpu. local-only app; no backend.
+`src/sculpture.ts` builds the closed mesh. `src/shaders/sculpture.wgsl` shades both treatments with the same camera and geometry. the wireframe illustrates the geometry before material shading; both sides are rendered using shaders.
 
-scene changes use a 520ms fade with synchronized diagram overlays; rapid changes continue from the current brightness. mesh/point views respond to pointer proximity, raster cells highlight on hover, and stage buttons lift and glow. reduced-motion preferences disable transition animation.
+the previous gallery is preserved on `feat/shader-gallery` at `be42b8d`. this version lives on `feat/single-shader-reveal`.
