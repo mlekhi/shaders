@@ -8,7 +8,7 @@ struct Params {
 
 fn rotate(p:vec3f)->vec3f { return (params.pose*vec4f(p,0)).xyz; }
 
-/* shared light placement; vertex material exposure balances the reflective material. */
+/* Both paths share the same bumped direct lighting and material. */
 fn lightTerm(N:vec3f,V:vec3f,L:vec3f,radiance:vec3f)->vec3f {
  let diffuse=max(dot(N,L),0.0);
  let H=normalize(L+V);
@@ -31,7 +31,7 @@ struct VertexOut {
  @location(0) world:vec3f,
  @location(1) normal:vec3f,
  @location(2) uv:vec2f,
- @location(3) vertexColor:vec3f,
+ @location(3) reflection:vec3f,
  @location(4) tangent:vec3f,
  @location(5) bitangent:vec3f,
 }
@@ -44,12 +44,9 @@ struct VertexOut {
  out.position=vec4f(world.x*params.focal/aspect,world.y*params.focal,depth*30.0/29.9-3.0/29.9,depth);
  out.world=world;out.normal=N;out.uv=uv;
  out.tangent=rotate(tangent);out.bitangent=rotate(bitangent);
- // A brighter polished base keeps the comparison about surface response,
- // rather than making the older lighting model artificially dim.
+ // Fixed-function-style reflection coordinates: computed per vertex, interpolated.
  let V=normalize(vec3f(0,0,5.1)-world);
- let softKey=normalize(vec3f(params.lightX*0.22,2.0,0.0)-world);
- let sheen=pow(max(dot(N,normalize(softKey+V)),0.0),24.0);
- out.vertexColor=lighting(world,N)*3.2+vec3f(0.035,0.045,0.06)+sheen*vec3f(0.65,0.57,0.48);
+ out.reflection=reflect(-V,N);
  return out;
 }
 @fragment fn fs_main(in:VertexOut)->@location(0) vec4f {
@@ -58,10 +55,9 @@ struct VertexOut {
  let B=normalize(cross(N,T))*select(-1.0,1.0,dot(cross(N,T),in.bitangent)>0.0);
  let mapped=normalize(textureSample(normalMap,normalSampler,in.uv).xyz*2.0-1.0);
  let bumpNormal=normalize(T*mapped.x+B*mapped.y+N*mapped.z);
- let surfaceNormal=select(N,bumpNormal,params.mode>0.5);
  let V=normalize(vec3f(0,0,5.1)-in.world);
- let R=reflect(-V,surfaceNormal);
- let fresnel=0.12+0.88*pow(1.0-max(dot(surfaceNormal,V),0.0),5.0);
+ let R=normalize(select(in.reflection,reflect(-V,bumpNormal),params.mode>0.5));
+ let fresnel=0.12+0.88*pow(1.0-max(dot(N,V),0.0),5.0);
  // Analytic studio environment: an artistic reflection treatment, not hardware emulation.
  let band=R.y+0.18*sin(R.x*3.0+params.lightX*0.18);
  let strip=exp(-pow((band-0.28)/0.12,2.0));
@@ -70,11 +66,9 @@ struct VertexOut {
  let palette=mix(vec3f(0.08,1.2,2.8),vec3f(3.2,0.65,0.18),smoothstep(-0.6,0.55,R.x));
  let environment=strip*vec3f(13.6,15.4,17.2)+wide*palette*1.5
   +edgeLight*vec3f(1.5,0.2,0.65)+vec3f(0.008,0.015,0.025);
- let pixelColor=lighting(in.world,surfaceNormal)*0.3+environment*(0.65+fresnel*0.7);
- // Smooth chrome on the left; engraved color and normals on the right.
- let phase=6.28318530718*(10.0*in.uv.y+2.0*in.uv.x);
- let engraving=pow((1.0+cos(phase))*0.5,6.0);
- let lit=pixelColor*(1.0-0.60*engraving*select(0.0,1.0,params.mode>0.5));
+ let pixelColor=lighting(in.world,bumpNormal)*0.3+environment*(0.65+fresnel*0.7);
+ // No painted dark lines: both use the same chrome; only reflection lookup differs.
+ let lit=pixelColor;
  let shaded=pow(max(lit/(1.0+lit),vec3f(0)),vec3f(1.0/2.2));
  let lattice=in.uv*vec2f(64,16);
  let cell=fract(lattice);let width=max(fwidth(lattice),vec2f(0.0001));

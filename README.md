@@ -1,15 +1,17 @@
-# engraved chrome: smooth vs normal-mapped lighting
+# smooth reflections vs reflective bump mapping
 
-a text-free comparison of the same sculpture, chrome material, camera and lights. both materials appear from the first reveal.
+a text-free recreation of two rendering paths associated with geforce 256 and geforce3. both sculptures share geometry, chrome, groove normals, direct lighting, exposure and the same analytic studio environment.
 
-left: smooth chrome without painted channels; reflections and lighting use smooth surface normals.
-right: engraved channels affect color and perturb tangent-space normals, making groove edges catch the light and bend reflections. neither changes the geometry.
+- left: groove normals affect direct diffuse/specular lighting, but reflection coordinates come from smooth mesh normals at vertices and interpolate across triangles.
+- right: identical direct lighting; reflection coordinates are calculated per fragment from the groove normal map.
 
-visible studio light bars track the shared key-light position. the 28-second loop reveals both materials, moves the light across them, pauses both poses briefly while the light keeps moving, then resumes. finished materials hold for 18 seconds. reduced motion presents a still completed comparison.
+there are no painted groove lines. reflections stay smooth on the left and bend across grooves on the right. both materials appear from the first reveal.
 
-this isolates a rendering technique, not the complete capabilities of two historical gpus. geforce 256 already supported cube environment mapping; chrome itself was not introduced by geforce3. both views use modern webgpu and an artistic analytic reflection environment, not hardware emulation.
+this demonstrates a specific historical distinction rather than simulating the cards. geforce 256 supported bump-mapped lighting and environment mapping. geforce3 texture shaders enabled reflective bump mapping with dependent texture operations. modern wgsl evaluates both paths here; the shared environment is analytic, not a period cubemap asset. precision, instruction limits, fresnel, tone mapping and performance are not emulated.
 
-historical reference: [nvidia cube environment mapping](https://www.nvidia.com/en-us/drivers/feature-cube/).
+sources: [nvidia's 2000 bump-mapping paper](https://developer.download.nvidia.com/assets/gamedev/docs/bumpmap.pdf), [nvidia reflective bump mapping presentation](https://developer.download.nvidia.com/assets/gamedev/docs/ReflectiveBumpMapping.pdf).
+
+the light tubes stay still until the first mesh reveal completes at 7 seconds, then follow a continuous 14-second round trip. the shared 28-second presentation includes an 18-second finished-material hold and a brief synchronized pose pause. reduced motion presents a still completed comparison.
 
 ```sh
 npm install
@@ -19,5 +21,3 @@ npm run build
 ```
 
 requires webgpu and hardware acceleration.
-
-the light follows a continuous 14-second round trip with smooth reversals and no endpoint holds.
