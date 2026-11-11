@@ -52,17 +52,23 @@ struct VertexOut {
  let N=normalize(in.normal);
  let T=normalize(in.tangent-N*dot(in.tangent,N));
  let B=normalize(cross(N,T))*select(-1.0,1.0,dot(cross(N,T),in.bitangent)>0.0);
- let mapped=normalize(textureSample(normalMap,normalSampler,in.uv).xyz*2.0-1.0);
+ let flow=params.time*0.025;
+ let waveA=textureSample(normalMap,normalSampler,in.uv+vec2f(flow,-flow*0.7)).xyz*2.0-1.0;
+ let waveB=textureSample(normalMap,normalSampler,in.uv*vec2f(2.0,1.0)+vec2f(-flow*0.6,flow*0.45)).xyz*2.0-1.0;
+ let mapped=normalize(vec3f(waveA.xy+waveB.xy*0.45,1.0));
  let bumpNormal=normalize(T*mapped.x+B*mapped.y+N*mapped.z);
  let V=normalize(vec3f(0,0,5.1)-in.world);
  let R=reflect(-V,bumpNormal);
  let fresnel=0.12+0.88*pow(1.0-max(dot(bumpNormal,V),0.0),5.0);
  // Analytic studio environment: an artistic reflection treatment, not hardware emulation.
- let strip=pow(max(0.0,1.0-abs(R.y-0.32-sin(params.time*0.12)*0.12)),32.0);
- let edgeLight=pow(max(dot(R,normalize(vec3f(-0.7,0.2,0.7))),0.0),18.0);
- let environment=strip*mix(vec3f(0.12,1.7,4.0),vec3f(4.0,0.8,0.16),smoothstep(-0.5,0.6,R.x))*2.5
-  +edgeLight*vec3f(2.8,0.25,1.0);
- let pixelColor=lighting(in.world,bumpNormal)+environment*(0.35+fresnel);
+ let band=R.y+0.18*sin(R.x*3.0+params.time*0.12);
+ let strip=exp(-pow((band-0.28)/0.12,2.0));
+ let wide=exp(-pow((band+0.3)/0.32,2.0));
+ let edgeLight=pow(max(dot(R,normalize(vec3f(-0.7,0.2,0.7))),0.0),12.0);
+ let palette=mix(vec3f(0.08,1.2,2.8),vec3f(3.2,0.65,0.18),smoothstep(-0.6,0.55,R.x));
+ let environment=strip*vec3f(3.8,4.3,4.8)+wide*palette*1.5
+  +edgeLight*vec3f(1.5,0.2,0.65)+vec3f(0.008,0.015,0.025);
+ let pixelColor=lighting(in.world,bumpNormal)*0.3+environment*(0.65+fresnel*0.7);
  let lit=select(in.vertexColor,pixelColor,params.mode>0.5);
  let shaded=pow(max(lit/(1.0+lit),vec3f(0)),vec3f(1.0/2.2));
  let lattice=in.uv*vec2f(64,16);

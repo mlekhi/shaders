@@ -82,7 +82,7 @@ export default function ShaderCanvas() {
         <canvas ref={classicRef} role="img" data-status="loading" aria-label="geforce 256-style lighting. blinn–phong lighting is calculated at vertices, then colors interpolate across triangles."/>
       </figure>
       <figure className="panel">
-        <canvas ref={programmableRef} role="img" data-status="loading" aria-label="geforce3-style shading. a tangent-space normal map adds surface grooves to per-pixel blinn–phong lighting without changing the mesh."/>
+        <canvas ref={programmableRef} role="img" data-status="loading" aria-label="geforce3-style shading. a tangent-space normal map adds flowing surface ripples to per-pixel blinn–phong lighting without changing the mesh."/>
       </figure>
     </div>
   </main>;
