@@ -39,11 +39,16 @@ describe('shared animation',()=>{
 });
 
 describe('light and surface study',()=>{
- it('sweeps continuously through both extremes without a hold',()=>{
+ it('holds the light until the first mesh reveal finishes',()=>{
+  for(const t of [0,1,3.5,6.99,7])expect(showcaseAt(t).lightX).toBe(-3.5);
+  expect(presentationAt(7).reveal).toBe(1);
+  expect(showcaseAt(7.1).lightX).toBeGreaterThan(-3.5);
+ });
+ it('sweeps continuously through both extremes after the first reveal',()=>{
   expect(showcaseAt(0).lightX).toBeCloseTo(-3.5);
-  expect(showcaseAt(7).lightX).toBeCloseTo(3.5);
-  expect(showcaseAt(14).lightX).toBeCloseTo(-3.5);
-  for(const turn of [7,14,21,28]){
+  expect(showcaseAt(14).lightX).toBeCloseTo(3.5);
+  expect(showcaseAt(21).lightX).toBeCloseTo(-3.5);
+  for(const turn of [14,21,28,35]){
    expect(showcaseAt(turn-0.1).lightX).not.toBe(showcaseAt(turn).lightX);
    expect(showcaseAt(turn+0.1).lightX).not.toBe(showcaseAt(turn).lightX);
   }

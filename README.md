@@ -11,7 +11,7 @@ this demonstrates a specific historical distinction rather than simulating the c
 
 sources: [nvidia's 2000 bump-mapping paper](https://developer.download.nvidia.com/assets/gamedev/docs/bumpmap.pdf), [nvidia reflective bump mapping presentation](https://developer.download.nvidia.com/assets/gamedev/docs/ReflectiveBumpMapping.pdf).
 
-the light tubes follow a continuous 14-second round trip. the shared 28-second presentation includes an 18-second finished-material hold and a brief synchronized pose pause. reduced motion presents a still completed comparison.
+the light tubes stay still until the first mesh reveal completes at 7 seconds, then follow a continuous 14-second round trip. the shared 28-second presentation includes an 18-second finished-material hold and a brief synchronized pose pause. reduced motion presents a still completed comparison.
 
 ```sh
 npm install
