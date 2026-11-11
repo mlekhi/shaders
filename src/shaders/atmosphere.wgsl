@@ -1,4 +1,4 @@
-struct Params { resolution:vec2f, focal:f32, mode:f32, pose:mat4x4f, reveal:f32, material:f32, time:f32 }
+struct Params { resolution:vec2f, focal:f32, mode:f32, pose:mat4x4f, reveal:f32, material:f32, time:f32, lightX:f32, detail:f32, flow:f32 }
 @group(0) @binding(0) var<uniform> params:Params;
 struct BackgroundVertex { @builtin(position) position:vec4f, @location(0) uv:vec2f }
 @vertex fn vs_main(@builtin(vertex_index) index:u32)->BackgroundVertex {

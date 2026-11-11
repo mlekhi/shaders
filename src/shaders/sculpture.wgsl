@@ -1,6 +1,6 @@
 struct Params {
  resolution:vec2f, focal:f32, mode:f32,
- pose:mat4x4f, reveal:f32, material:f32, time:f32,
+ pose:mat4x4f, reveal:f32, material:f32, time:f32, lightX:f32, detail:f32, flow:f32,
 }
 @group(0) @binding(0) var<uniform> params:Params;
 @group(0) @binding(1) var normalMap:texture_2d<f32>;
@@ -18,8 +18,7 @@ fn lightTerm(N:vec3f,V:vec3f,L:vec3f,radiance:vec3f)->vec3f {
 fn lighting(p:vec3f,normal:vec3f)->vec3f {
  let V=normalize(vec3f(0,0,5.1)-p);
  let N=normal;
- let phase=params.time*0.28;
- let key=normalize(vec3f(-1.8+sin(phase)*1.2,2.4,2.8)-p);
+ let key=normalize(vec3f(params.lightX,2.4,2.8)-p);
  let fill=normalize(vec3f(2.8,0.2,1.4)-p);
  let rim=normalize(vec3f(-2.0,-1.4,-0.2)-p);
  return vec3f(0.002,0.004,0.008)
@@ -48,7 +47,7 @@ struct VertexOut {
  // A brighter polished base keeps the comparison about surface response,
  // rather than making the older lighting model artificially dim.
  let V=normalize(vec3f(0,0,5.1)-world);
- let softKey=normalize(vec3f(-1.8+sin(params.time*0.28)*1.2,2.4,2.8)-world);
+ let softKey=normalize(vec3f(params.lightX,2.4,2.8)-world);
  let sheen=pow(max(dot(N,normalize(softKey+V)),0.0),24.0);
  out.vertexColor=lighting(world,N)*3.2+vec3f(0.035,0.045,0.06)+sheen*vec3f(0.65,0.57,0.48);
  return out;
@@ -57,16 +56,16 @@ struct VertexOut {
  let N=normalize(in.normal);
  let T=normalize(in.tangent-N*dot(in.tangent,N));
  let B=normalize(cross(N,T))*select(-1.0,1.0,dot(cross(N,T),in.bitangent)>0.0);
- let flow=params.time*0.025;
+ let flow=params.flow;
  let waveA=textureSample(normalMap,normalSampler,in.uv+vec2f(flow,-flow*0.7)).xyz*2.0-1.0;
  let waveB=textureSample(normalMap,normalSampler,in.uv*vec2f(2.0,1.0)+vec2f(-flow*0.6,flow*0.45)).xyz*2.0-1.0;
- let mapped=normalize(vec3f(waveA.xy+waveB.xy*0.45,1.0));
+ let mapped=normalize(vec3f((waveA.xy+waveB.xy*0.45)*params.detail,1.0));
  let bumpNormal=normalize(T*mapped.x+B*mapped.y+N*mapped.z);
  let V=normalize(vec3f(0,0,5.1)-in.world);
  let R=reflect(-V,bumpNormal);
  let fresnel=0.12+0.88*pow(1.0-max(dot(bumpNormal,V),0.0),5.0);
  // Analytic studio environment: an artistic reflection treatment, not hardware emulation.
- let band=R.y+0.18*sin(R.x*3.0+params.time*0.12);
+ let band=R.y+0.18*sin(R.x*3.0+params.lightX*0.18);
  let strip=exp(-pow((band-0.28)/0.12,2.0));
  let wide=exp(-pow((band+0.3)/0.32,2.0));
  let edgeLight=pow(max(dot(R,normalize(vec3f(-0.7,0.2,0.7))),0.0),12.0);
@@ -74,7 +73,7 @@ struct VertexOut {
  let environment=strip*vec3f(3.8,4.3,4.8)+wide*palette*1.5
   +edgeLight*vec3f(1.5,0.2,0.65)+vec3f(0.008,0.015,0.025);
  let pixelColor=lighting(in.world,bumpNormal)*0.3+environment*(0.65+fresnel*0.7);
- let lit=select(in.vertexColor,pixelColor,params.mode>0.5);
+ let lit=select(in.vertexColor,mix(in.vertexColor,pixelColor,params.detail),params.mode>0.5);
  let shaded=pow(max(lit/(1.0+lit),vec3f(0)),vec3f(1.0/2.2));
  let lattice=in.uv*vec2f(64,16);
  let cell=fract(lattice);let width=max(fwidth(lattice),vec2f(0.0001));
