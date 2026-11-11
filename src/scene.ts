@@ -47,7 +47,7 @@ export function showcaseAt(time:number) {
   else if(local>=23)poseLocal=local-6;
   return {
     poseTime:Math.floor(t/presentationCycle)*(presentationCycle-6)+poseLocal,
-    lightX:-3.5+7*smooth(7,17)-7*smooth(23,28),
+    lightX:-3.5*Math.cos(t*Math.PI/7),
     detail:smooth(10,16),
     flow:Math.max(0,local-16)*0.035,
   };

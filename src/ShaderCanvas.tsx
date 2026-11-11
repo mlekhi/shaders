@@ -80,10 +80,10 @@ export default function ShaderCanvas() {
   return <main className="experience">
     <div className="comparison">
       <figure className="panel">
-        <canvas ref={classicRef} role="img" data-status="loading" aria-label="chrome with painted engraved grooves. lighting follows smooth surface normals."/>
+        <canvas ref={classicRef} role="img" data-status="loading" aria-label="smooth chrome. lighting follows smooth surface normals."/>
       </figure>
       <figure className="panel">
-        <canvas ref={programmableRef} role="img" data-status="loading" aria-label="chrome with the same engraved grooves and tangent-space normal mapping. groove edges respond to the moving light without changing the mesh."/>
+        <canvas ref={programmableRef} role="img" data-status="loading" aria-label="engraved chrome with tangent-space normal mapping. groove edges respond to the moving light without changing the mesh."/>
       </figure>
     </div>
   </main>;

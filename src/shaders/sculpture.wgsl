@@ -22,7 +22,7 @@ fn lighting(p:vec3f,normal:vec3f)->vec3f {
  let fill=normalize(vec3f(2.8,0.2,1.4)-p);
  let rim=normalize(vec3f(-2.0,-1.4,-0.2)-p);
  return vec3f(0.002,0.004,0.008)
-  +lightTerm(N,V,key,vec3f(3.2,1.25,0.42))
+  +lightTerm(N,V,key,vec3f(25.6,10.0,3.36))
   +lightTerm(N,V,fill,vec3f(0.12,1.4,3.8))
   +lightTerm(N,V,rim,vec3f(1.6,0.18,0.45));
 }
@@ -68,13 +68,13 @@ struct VertexOut {
  let wide=exp(-pow((band+0.3)/0.32,2.0));
  let edgeLight=pow(max(dot(R,normalize(vec3f(-0.7,0.2,0.7))),0.0),12.0);
  let palette=mix(vec3f(0.08,1.2,2.8),vec3f(3.2,0.65,0.18),smoothstep(-0.6,0.55,R.x));
- let environment=strip*vec3f(3.8,4.3,4.8)+wide*palette*1.5
+ let environment=strip*vec3f(13.6,15.4,17.2)+wide*palette*1.5
   +edgeLight*vec3f(1.5,0.2,0.65)+vec3f(0.008,0.015,0.025);
  let pixelColor=lighting(in.world,surfaceNormal)*0.3+environment*(0.65+fresnel*0.7);
- // Both have identical chrome and painted channels; only the right perturbs normals.
+ // Smooth chrome on the left; engraved color and normals on the right.
  let phase=6.28318530718*(10.0*in.uv.y+2.0*in.uv.x);
  let engraving=pow((1.0+cos(phase))*0.5,6.0);
- let lit=pixelColor*(1.0-0.60*engraving);
+ let lit=pixelColor*(1.0-0.60*engraving*select(0.0,1.0,params.mode>0.5));
  let shaded=pow(max(lit/(1.0+lit),vec3f(0)),vec3f(1.0/2.2));
  let lattice=in.uv*vec2f(64,16);
  let cell=fract(lattice);let width=max(fwidth(lattice),vec2f(0.0001));

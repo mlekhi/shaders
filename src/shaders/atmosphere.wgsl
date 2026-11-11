@@ -22,18 +22,21 @@ struct BackgroundVertex { @builtin(position) position:vec4f, @location(0) uv:vec
  // A slim emissive diffuser sits inside a dark metal studio-light housing.
  let lampCenter=vec2f(params.lightX*0.22,-2.0)*params.focal/(2.0*5.1);
  let lampScale=params.focal/(2.0*5.1);
- let q=(p-lampCenter)/lampScale;
- let aa=1.5/(params.resolution.y*lampScale);
- let housingQ=abs(q)-vec2f(0.43,0.09);
- let housingDistance=length(max(housingQ,vec2f(0)))+min(max(housingQ.x,housingQ.y),0.0)-0.035;
- let housing=1.0-smoothstep(-aa,aa,housingDistance);
- color=mix(color,vec3f(0.09,0.105,0.12),housing);
- let diffuserQ=abs(q-vec2f(0,0.018))-vec2f(0.35,0.025);
- let diffuserDistance=length(max(diffuserQ,vec2f(0)))+min(max(diffuserQ.x,diffuserQ.y),0.0)-0.012;
- let diffuser=1.0-smoothstep(-aa,aa,diffuserDistance);
- let glow=exp(-max(diffuserDistance,0.0)*12.0);
- color+=vec3f(1.0,0.63,0.30)*glow*0.22;
- color=mix(color,vec3f(1.0,0.92,0.76),diffuser);
+ let local=(p-lampCenter)/lampScale;
+ // Horizontal cylindrical diffuser with rounded end caps and a shaded metal rim.
+ let q=local;
+ let aa=1.0/(params.resolution.y*lampScale);
+ let axial=clamp(q.x,-0.34,0.34);
+ let radial=length(q-vec2f(axial,0));
+ let housing=1.0-smoothstep(0.052-aa,0.052+aa,radial);
+ let rimShade=mix(vec3f(0.025,0.035,0.045),vec3f(0.32,0.35,0.38),clamp(0.5-q.y*9.0,0.0,1.0));
+ color=mix(color,rimShade,housing);
+ let emitterDistance=length(q-vec2f(clamp(q.x,-0.30,0.30),0));
+ let emission=1.0-smoothstep(0.033-aa,0.033+aa,emitterDistance);
+ let glow=exp(-pow(max(emitterDistance-0.025,0.0)/0.13,1.3));
+ color+=vec3f(1.0,0.75,0.46)*glow*0.30;
+ let cylinder=pow(clamp(1.0-abs(q.y)/0.04,0.0,1.0),0.4);
+ color=mix(color,mix(vec3f(0.65,0.48,0.30),vec3f(1.0,1.0,0.97),cylinder),emission);
  let grain=fract(sin(dot(uv*params.resolution,vec2f(12.9898,78.233)))*43758.5453)-0.5;
  return vec4f(color+grain*0.0025,1.0);
 }

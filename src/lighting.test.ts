@@ -39,10 +39,14 @@ describe('shared animation',()=>{
 });
 
 describe('light and surface study',()=>{
- it('moves the light across both views before holding it still',()=>{
-  expect(showcaseAt(7).lightX).toBe(-3.5);
-  expect(showcaseAt(17).lightX).toBe(3.5);
-  expect(showcaseAt(21).lightX).toBe(showcaseAt(17).lightX);
+ it('sweeps continuously through both extremes without a hold',()=>{
+  expect(showcaseAt(0).lightX).toBeCloseTo(-3.5);
+  expect(showcaseAt(7).lightX).toBeCloseTo(3.5);
+  expect(showcaseAt(14).lightX).toBeCloseTo(-3.5);
+  for(const turn of [7,14,21,28]){
+   expect(showcaseAt(turn-0.1).lightX).not.toBe(showcaseAt(turn).lightX);
+   expect(showcaseAt(turn+0.1).lightX).not.toBe(showcaseAt(turn).lightX);
+  }
  });
  it('holds the shared pose while surface ripples continue',()=>{
   expect(showcaseAt(21).poseTime).toBe(showcaseAt(18).poseTime);
