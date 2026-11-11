@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildNormalMap, tangentNormal } from './normalMap';
-import { presentationAt, presentationCycle, sceneRotation } from './scene';
+import { presentationAt, presentationCycle, sceneRotation, showcaseAt } from './scene';
 
 describe('normal map',()=>{
  it('stores unit tangent-space normals without changing the mesh',()=>{
@@ -35,5 +35,27 @@ describe('shared animation',()=>{
   const m=sceneRotation(23);
   for(const start of [0,4,8])expect(Math.hypot(...m.slice(start,start+3))).toBeCloseTo(1,8);
   expect(m[0]*m[4]+m[1]*m[5]+m[2]*m[6]).toBeCloseTo(0,8);
+ });
+});
+
+describe('light and surface study',()=>{
+ it('sweeps continuously through both extremes without a hold',()=>{
+  expect(showcaseAt(0).lightX).toBeCloseTo(-3.5);
+  expect(showcaseAt(7).lightX).toBeCloseTo(3.5);
+  expect(showcaseAt(14).lightX).toBeCloseTo(-3.5);
+  for(const turn of [7,14,21,28]){
+   expect(showcaseAt(turn-0.1).lightX).not.toBe(showcaseAt(turn).lightX);
+   expect(showcaseAt(turn+0.1).lightX).not.toBe(showcaseAt(turn).lightX);
+  }
+ });
+ it('holds the shared pose while surface ripples continue',()=>{
+  expect(showcaseAt(21).poseTime).toBe(showcaseAt(18).poseTime);
+  expect(showcaseAt(21).flow).toBeGreaterThan(showcaseAt(18).flow);
+  expect(showcaseAt(9).detail).toBe(0);
+  expect(showcaseAt(18).detail).toBe(1);
+ });
+ it('resumes motion and crosses the cycle without a pose jump',()=>{
+  expect(showcaseAt(24).poseTime).toBeGreaterThan(showcaseAt(23).poseTime);
+  expect(showcaseAt(28).poseTime-showcaseAt(27.999).poseTime).toBeCloseTo(.001);
  });
 });

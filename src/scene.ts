@@ -13,7 +13,7 @@ export function sceneRotation(time: number): number[] {
   ];
 }
 
-/* the reveal is illustrative; the shared orientation never pauses. */
+/* shared choreography: reveal, light pass, surface study, then resume. */
 export const presentationCycle=28;
 export type Presentation={reveal:number;poseTime:number;material:number};
 export function presentationAt(time:number):Presentation {
@@ -32,4 +32,23 @@ export function transformPoint(p: Point3, m: readonly number[]): Point3 {
 
 export function cameraFocal(aspect: number): number {
   return Math.min(2.9,aspect*3.0);
+}
+
+export function showcaseAt(time:number) {
+  const t=Math.max(0,Number.isFinite(time)?time:0);
+  const local=t%presentationCycle;
+  const smooth=(a:number,b:number)=>{const x=Math.max(0,Math.min(1,(local-a)/(b-a)));return x*x*(3-2*x);};
+  // Integral of the eased stop/resume velocity; continuous across cycles.
+  const rampIntegral=(x:number)=>x-x*x*x+0.5*x*x*x*x;
+  let poseLocal=local;
+  if(local>=16&&local<17)poseLocal=16+rampIntegral(local-16);
+  else if(local>=17&&local<22)poseLocal=16.5;
+  else if(local>=22&&local<23){const x=local-22;poseLocal=16.5+x-rampIntegral(x);}
+  else if(local>=23)poseLocal=local-6;
+  return {
+    poseTime:Math.floor(t/presentationCycle)*(presentationCycle-6)+poseLocal,
+    lightX:-3.5*Math.cos(t*Math.PI/7),
+    detail:smooth(10,16),
+    flow:Math.max(0,local-16)*0.035,
+  };
 }

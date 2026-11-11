@@ -1,14 +1,15 @@
-# gpu shading: geforce 256 (1999) vs geforce3 (2001)
+# engraved chrome: smooth vs normal-mapped lighting
 
-a text-free, full-screen visualization. one sculpture compares fixed-function-style vertex lighting with programmable per-pixel bump mapping.
+a text-free comparison of the same sculpture, chrome material, camera and lights. both materials appear from the first reveal.
 
-- left: blinn–phong lighting at vertices, with gouraud color interpolation.
-- right: per-fragment blinn–phong lighting with a sampled tangent-space normal map. two scrolling normal-map samples create flowing ripples that change surface normals, not geometry. an artistic analytic studio environment adds broad silver, cyan and amber reflections; this is not an exact geforce3 shader recreation.
-- both: identical geometry, lights, resolution policy, antialiasing and continuously synchronized motion. a feathered wireframe-to-material sweep illustrates shading, not gpu execution order.
+left: smooth chrome without painted channels; reflections and lighting use smooth surface normals.
+right: engraved channels affect color and perturb tangent-space normals, making groove edges catch the light and bend reflections. neither changes the geometry.
 
-this recreates techniques associated with the transition from geforce 256's fixed-function transform and lighting to geforce3's programmable vertex and pixel shading. both sides actually run modern wgsl through vgpu/webgpu. it is not a hardware emulator, performance benchmark, or claim that bump mapping first appeared in 2001. light count, precision and tone mapping are illustrative rather than exact period hardware constraints.
+visible studio light bars track the shared key-light position. the 28-second loop reveals both materials, moves the light across them, pauses both poses briefly while the light keeps moving, then resumes. finished materials hold for 18 seconds. reduced motion presents a still completed comparison.
 
-historical reference: [nvidia's cg tutorial, gpu generations](https://download.nvidia.com/developer/cg/Cg_Tutorial/Chapter_1.pdf).
+this isolates a rendering technique, not the complete capabilities of two historical gpus. geforce 256 already supported cube environment mapping; chrome itself was not introduced by geforce3. both views use modern webgpu and an artistic analytic reflection environment, not hardware emulation.
+
+historical reference: [nvidia cube environment mapping](https://www.nvidia.com/en-us/drivers/feature-cube/).
 
 ```sh
 npm install
@@ -17,10 +18,6 @@ npm test
 npm run build
 ```
 
-requires webgpu and hardware acceleration. reduced motion presents both finished materials without animation.
+requires webgpu and hardware acceleration.
 
-- `src/sculpture.ts`: shared parametric mesh and tangent frames.
-- `src/normalMap.ts`: periodic tangent-space normal texture.
-- `src/scene.ts`: shared camera, rotation and sweep timeline.
-- `src/ShaderCanvas.tsx`: shared gpu, two canvases and lifecycle.
-- `src/shaders/sculpture.wgsl`: vertex and fragment lighting comparison.
+the light follows a continuous 14-second round trip with smooth reversals and no endpoint holds.

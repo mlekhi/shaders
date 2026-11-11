@@ -4,7 +4,7 @@ import sculpture from './shaders/sculpture.wgsl';
 import atmosphere from './shaders/atmosphere.wgsl';
 import { buildShadingGeometry } from './sculpture';
 import { buildNormalMap } from './normalMap';
-import { cameraFocal, presentationAt, sceneRotation } from './scene';
+import { cameraFocal, presentationAt, sceneRotation, showcaseAt } from './scene';
 
 export default function ShaderCanvas() {
   const classicRef=useRef<HTMLCanvasElement>(null);
@@ -40,7 +40,8 @@ export default function ShaderCanvas() {
           const target=surface(gpu!,canvas,{dpr:[1,1.75],depth:true,msaa:4});
           const params=(time:number)=>{
             const view=reduced.matches?{reveal:1,material:1,poseTime:0}:presentationAt(time);
-            return {resolution:target.size,focal:cameraFocal(target.size[0]/target.size[1]),mode,pose:sceneRotation(view.poseTime),reveal:view.reveal,material:view.material,time:reduced.matches?0:time};
+            const study=reduced.matches?{poseTime:0,lightX:0,detail:1,flow:0}:showcaseAt(time);
+            return {lightX:study.lightX,detail:study.detail,flow:study.flow,resolution:target.size,focal:cameraFocal(target.size[0]/target.size[1]),mode,pose:sceneRotation(study.poseTime),reveal:view.reveal,material:view.material,time:reduced.matches?0:time};
           };
           const mesh=draw(gpu!,{shader:sculpture,geometry,cull:'none',depth:{write:true,compare:'less'},set:{params:params(0),normalMap,normalSampler}});
           const background=effect(gpu!,atmosphere,{set:{params:params(0)}});
@@ -79,10 +80,10 @@ export default function ShaderCanvas() {
   return <main className="experience">
     <div className="comparison">
       <figure className="panel">
-        <canvas ref={classicRef} role="img" data-status="loading" aria-label="geforce 256-style lighting. blinn–phong lighting is calculated at vertices, then colors interpolate across triangles."/>
+        <canvas ref={classicRef} role="img" data-status="loading" aria-label="smooth chrome. lighting follows smooth surface normals."/>
       </figure>
       <figure className="panel">
-        <canvas ref={programmableRef} role="img" data-status="loading" aria-label="geforce3-style shading. a tangent-space normal map adds flowing surface ripples to per-pixel blinn–phong lighting without changing the mesh."/>
+        <canvas ref={programmableRef} role="img" data-status="loading" aria-label="engraved chrome with tangent-space normal mapping. groove edges respond to the moving light without changing the mesh."/>
       </figure>
     </div>
   </main>;
