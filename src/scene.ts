@@ -14,7 +14,7 @@ export function sceneRotation(time: number): number[] {
 }
 
 /* the reveal is illustrative; the shared orientation never pauses. */
-export const presentationCycle=16;
+export const presentationCycle=28;
 export type Presentation={reveal:number;poseTime:number;material:number};
 export function presentationAt(time:number):Presentation {
   const t=Math.max(0,Number.isFinite(time)?time:0);
@@ -22,8 +22,8 @@ export function presentationAt(time:number):Presentation {
   const ease=(x:number)=>x*x*(3-2*x);
   if(local<1)return {reveal:0,poseTime:t,material:1};
   if(local<7)return {reveal:ease((local-1)/6),poseTime:t,material:1};
-  if(local<13)return {reveal:1,poseTime:t,material:1};
-  return {reveal:1,poseTime:t,material:1-ease((local-13)/3)};
+  if(local<25)return {reveal:1,poseTime:t,material:1};
+  return {reveal:1,poseTime:t,material:1-ease((local-25)/3)};
 }
 
 export function transformPoint(p: Point3, m: readonly number[]): Point3 {

@@ -4,10 +4,11 @@
  */
 export function tangentNormal(u:number,v:number):[number,number,number] {
   const a=2*Math.PI*u,b=2*Math.PI*v;
-  const phase=18*b+3*a+1.8*Math.sin(2*a);
-  const slope=Math.cos(phase);
-  const x=-0.16*slope*(3+3.6*Math.cos(2*a))/3;
-  const y=-0.72*slope;
+  // Broad, seamless waves keep the surface fluid rather than ribbed.
+  const phase=3*b+2*a+0.65*Math.sin(a-b);
+  const secondary=5*b-3*a;
+  const x=-0.22*Math.cos(phase)-0.10*Math.cos(secondary);
+  const y=-0.34*Math.cos(phase)+0.13*Math.cos(secondary);
   const length=Math.hypot(x,y,1);
   return [x/length,y/length,1/length];
 }
