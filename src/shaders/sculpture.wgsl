@@ -8,7 +8,7 @@ struct Params {
 
 fn rotate(p:vec3f)->vec3f { return (params.pose*vec4f(p,0)).xyz; }
 
-/* both pipelines use exactly the same light and material equations. */
+/* shared light placement; vertex material exposure balances the reflective material. */
 fn lightTerm(N:vec3f,V:vec3f,L:vec3f,radiance:vec3f)->vec3f {
  let diffuse=max(dot(N,L),0.0);
  let H=normalize(L+V);
@@ -45,7 +45,12 @@ struct VertexOut {
  out.position=vec4f(world.x*params.focal/aspect,world.y*params.focal,depth*30.0/29.9-3.0/29.9,depth);
  out.world=world;out.normal=N;out.uv=uv;
  out.tangent=rotate(tangent);out.bitangent=rotate(bitangent);
- out.vertexColor=lighting(world,N);
+ // A brighter polished base keeps the comparison about surface response,
+ // rather than making the older lighting model artificially dim.
+ let V=normalize(vec3f(0,0,5.1)-world);
+ let softKey=normalize(vec3f(-1.8+sin(params.time*0.28)*1.2,2.4,2.8)-world);
+ let sheen=pow(max(dot(N,normalize(softKey+V)),0.0),24.0);
+ out.vertexColor=lighting(world,N)*3.2+vec3f(0.035,0.045,0.06)+sheen*vec3f(0.65,0.57,0.48);
  return out;
 }
 @fragment fn fs_main(in:VertexOut)->@location(0) vec4f {
