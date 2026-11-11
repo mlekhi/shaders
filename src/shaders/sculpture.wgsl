@@ -1,4 +1,4 @@
-struct Params { resolution:vec2f, focal:f32, entrance:f32, pose:mat4x4f }
+struct Params { resolution:vec2f, focal:f32, entrance:f32, pose:mat4x4f, reveal:f32, material:f32 }
 @group(0) @binding(0) var<uniform> params:Params;
 const PI:f32=3.14159265359;
 fn rotate(p:vec3f)->vec3f {
@@ -68,6 +68,17 @@ fn tonemap(color:vec3f)->vec3f {
  metal+=pow(1.0-ndv,3.0)*vec3f(0.1,0.22,0.3)*0.2;
  var color=metal;
  color=pow(tonemap(color),vec3f(1.0/2.2));
+ let lattice=in.uv*vec2f(96.0,20.0);
+ let cell=fract(lattice);
+ let derivative=max(fwidth(lattice),vec2f(0.0001));
+ let edges=min(cell,1.0-cell)/derivative;
+ let diagonal=abs(cell.x-cell.y)/max(derivative.x+derivative.y,0.0001);
+ let wire=1.0-smoothstep(0.25,1.0,min(min(edges.x,edges.y),diagonal));
+ let blueprint=vec3f(0.024,0.045,0.059)+wire*vec3f(0.15,0.25,0.29);
+ let distance=params.reveal-in.position.x/params.resolution.x;
+ let blend=smoothstep(-0.045,0.045,distance)*params.material;
+ let glow=exp(-pow(distance/0.024,2.0))*0.055*params.material;
+ color=mix(blueprint,color,blend)+vec3f(0.4,0.7,0.8)*glow;
  let fade=smoothstep(0.0,1.0,params.entrance);
  return vec4f(mix(vec3f(0.022,0.034,0.05),color,fade),1.0);
 }

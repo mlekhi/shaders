@@ -23,7 +23,7 @@ function edge(a: Point3,b: Point3,x: number,y: number): number {
   return (x-a[0])*(b[1]-a[1])-(y-a[1])*(b[0]-a[0]);
 }
 
-export function rasterizeTriangle(frame: Framebuffer,a: Point3,b: Point3,c: Point3,color: Color): void {
+export function rasterizeTriangle(frame: Framebuffer,a: Point3,b: Point3,c: Point3,color: Color,wireframe=false): void {
   const area=edge(a,b,c[0],c[1]);
   if(Math.abs(area)<0.00001) return;
   const minX=Math.max(0,Math.floor(Math.min(a[0],b[0],c[0])));
@@ -40,7 +40,9 @@ export function rasterizeTriangle(frame: Framebuffer,a: Point3,b: Point3,c: Poin
     if(depth<=frame.depth[index]) continue;
     frame.depth[index]=depth;
     const offset=index*4;
-    frame.pixels[offset]=color[0];frame.pixels[offset+1]=color[1];frame.pixels[offset+2]=color[2];frame.pixels[offset+3]=255;
+    const distance=Math.min(wa*Math.abs(area)/Math.hypot(b[0]-c[0],b[1]-c[1]),wb*Math.abs(area)/Math.hypot(c[0]-a[0],c[1]-a[1]),wc*Math.abs(area)/Math.hypot(a[0]-b[0],a[1]-b[1]));
+    const ink=wireframe?(distance<0.55?SOFTWARE_PALETTE[5]:SOFTWARE_PALETTE[0]):color;
+    frame.pixels[offset]=ink[0];frame.pixels[offset+1]=ink[1];frame.pixels[offset+2]=ink[2];frame.pixels[offset+3]=255;
   }
 }
 
@@ -57,7 +59,7 @@ for(let x=0;x<segments;x++) for(let y=0;y<sides;y++) {
   triangles.push([a,b,c],[b,d,c]);
 }
 
-export function renderSoftware(frame: Framebuffer,pose: readonly number[]): void {
+export function renderSoftware(frame: Framebuffer,pose: readonly number[],wireframe=false): void {
   frame.depth.fill(0);
   const background=SOFTWARE_PALETTE[0];
   for(let i=0;i<frame.pixels.length;i+=4) {
@@ -80,6 +82,25 @@ export function renderSoftware(frame: Framebuffer,pose: readonly number[]): void
     if(nx*(-a[0])+ny*(-a[1])+nz*(5.1-a[2])<0){nx=-nx;ny=-ny;nz=-nz;}
     const diffuse=Math.max(0,(-nx*0.4+ny*0.6+nz)/Math.sqrt(1.52));
     const shade=1+Math.round((0.12+0.88*diffuse)*14);
-    rasterizeTriangle(frame,projected[ai],projected[bi],projected[ci],SOFTWARE_PALETTE[shade]);
+    rasterizeTriangle(frame,projected[ai],projected[bi],projected[ci],SOFTWARE_PALETTE[shade],wireframe);
+  }
+}
+
+/* the wipe is a presentation aid; it is not simulated hardware execution. */
+export function compositeSoftware(output:Framebuffer,solid:Framebuffer,wire:Framebuffer,reveal:number,material:number):void {
+  for(let x=0;x<output.width;x++) {
+    const t=Math.max(0,Math.min(1,(reveal-x/output.width+0.045)/0.09));
+    const blend=t*t*(3-2*t)*material;
+    for(let y=0;y<output.height;y++) {
+      const i=(y*output.width+x)*4;
+      const desired=wire.pixels[i]+(solid.pixels[i]-wire.pixels[i])*blend;
+      let best=0,distance=Infinity;
+      for(let c=0;c<SOFTWARE_PALETTE.length;c++) {
+        const d=Math.abs(SOFTWARE_PALETTE[c][0]-desired);
+        if(d<distance){distance=d;best=c;}
+      }
+      const color=SOFTWARE_PALETTE[best];
+      output.pixels[i]=color[0];output.pixels[i+1]=color[1];output.pixels[i+2]=color[2];output.pixels[i+3]=255;
+    }
   }
 }
