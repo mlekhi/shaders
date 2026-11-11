@@ -1,84 +1,70 @@
-struct Params { resolution:vec2f, focal:f32, entrance:f32, pose:mat4x4f, reveal:f32, material:f32 }
+struct Params {
+ resolution:vec2f, focal:f32, mode:f32,
+ pose:mat4x4f, reveal:f32, material:f32, time:f32,
+}
 @group(0) @binding(0) var<uniform> params:Params;
-const PI:f32=3.14159265359;
-fn rotate(p:vec3f)->vec3f {
- return (params.pose*vec4f(p,0.0)).xyz;
+@group(0) @binding(1) var normalMap:texture_2d<f32>;
+@group(0) @binding(2) var normalSampler:sampler;
+
+fn rotate(p:vec3f)->vec3f { return (params.pose*vec4f(p,0)).xyz; }
+
+/* both pipelines use exactly the same light and material equations. */
+fn lightTerm(N:vec3f,V:vec3f,L:vec3f,radiance:vec3f)->vec3f {
+ let diffuse=max(dot(N,L),0.0);
+ let H=normalize(L+V);
+ let specular=pow(max(dot(N,H),0.0),90.0)*select(0.0,1.0,diffuse>0.0);
+ return radiance*(vec3f(0.13,0.22,0.26)*diffuse+vec3f(0.9,0.95,1.0)*specular*1.8);
+}
+fn lighting(p:vec3f,normal:vec3f)->vec3f {
+ let V=normalize(vec3f(0,0,5.1)-p);
+ let N=normal;
+ let phase=params.time*0.28;
+ let key=normalize(vec3f(-1.8+sin(phase)*1.2,2.4,2.8)-p);
+ let fill=normalize(vec3f(2.8,0.2,1.4)-p);
+ let rim=normalize(vec3f(-2.0,-1.4,-0.2)-p);
+ return vec3f(0.009,0.015,0.022)
+  +lightTerm(N,V,key,vec3f(1.8,1.65,1.4))
+  +lightTerm(N,V,fill,vec3f(0.32,0.7,1.0))
+  +lightTerm(N,V,rim,vec3f(0.9,0.48,0.22));
 }
 struct VertexOut {
  @builtin(position) position:vec4f,
  @location(0) world:vec3f,
  @location(1) normal:vec3f,
  @location(2) uv:vec2f,
+ @location(3) vertexColor:vec3f,
+ @location(4) tangent:vec3f,
+ @location(5) bitangent:vec3f,
 }
-@vertex fn vs_main(@location(0) p:vec3f,@location(1) n:vec3f,@location(2) uv:vec2f)->VertexOut {
+@vertex fn vs_main(@location(0) p:vec3f,@location(1) n:vec3f,@location(2) uv:vec2f,@location(3) tangent:vec3f,@location(4) bitangent:vec3f)->VertexOut {
  let world=rotate(p);
+ let N=normalize(rotate(n));
  let aspect=params.resolution.x/params.resolution.y;
- let focal=params.focal;
  let depth=5.1-world.z;
  var out:VertexOut;
- out.position=vec4f(world.x*focal/aspect,world.y*focal,depth*30.0/29.9-3.0/29.9,depth);
- out.world=world;out.normal=rotate(n);out.uv=uv;
+ out.position=vec4f(world.x*params.focal/aspect,world.y*params.focal,depth*30.0/29.9-3.0/29.9,depth);
+ out.world=world;out.normal=N;out.uv=uv;
+ out.tangent=rotate(tangent);out.bitangent=rotate(bitangent);
+ out.vertexColor=lighting(world,N);
  return out;
 }
-fn softbox(d:vec3f,center:vec3f,up:vec3f,size:vec2f,soft:f32)->f32 {
- let forward=normalize(center);
- let right=normalize(cross(forward,up));
- let vertical=cross(right,forward);
- let facing=dot(d,forward);
- let uv=vec2f(dot(d,right),dot(d,vertical))/max(facing,0.001);
- let edge=abs(uv)-size;
- return (1.0-smoothstep(-soft,soft,max(edge.x,edge.y)))*smoothstep(0.0,0.15,facing);
-}
-fn studio(d:vec3f)->vec3f {
- let footprint=max(length(dpdx(d)),length(dpdy(d)));
- let soft=0.045+footprint*1.4;
- let key=softbox(d,vec3f(-1.3,1.8,1.8),vec3f(0,1,0),vec2f(0.65,0.85),soft);
- let ribbon=softbox(d,vec3f(1.8,0.6,1.0),vec3f(0,1,0),vec2f(0.12,1.6),soft);
- let rim=softbox(d,vec3f(-1.6,-0.2,-0.9),vec3f(0,1,0),vec2f(0.2,1.4),soft);
- let top=softbox(d,vec3f(0.0,2.5,-0.6),vec3f(0,0,1),vec2f(1.4,0.25),soft);
- let low=softbox(d,vec3f(0.3,-1.8,1.2),vec3f(0,0,1),vec2f(0.8,0.1),soft);
- var env=mix(vec3f(0.018,0.032,0.05),vec3f(0.15,0.19,0.23),smoothstep(-0.8,1.0,d.y));
- env+=key*vec3f(2.7,2.9,3.0);
- env+=ribbon*vec3f(3.6,1.8,0.65);
- env+=rim*vec3f(0.12,1.2,1.8);
- env+=top*vec3f(1.0,1.25,1.8);
- env+=low*vec3f(1.0,0.65,0.4);
- return env;
-}
-fn film(cosine:f32,uv:vec2f)->vec3f {
- let thickness=370.0+70.0*sin(uv.x*PI*6.0+uv.y*PI*2.0);
- let path=2.0*1.34*thickness*sqrt(1.0-(1.0-cosine*cosine)/1.7956);
- return 0.5+0.5*cos(2.0*PI*path/vec3f(650.0,510.0,475.0));
-}
-fn tonemap(color:vec3f)->vec3f {
- let x=max(color,vec3f(0.0));
- return clamp((x*(2.51*x+0.03))/(x*(2.43*x+0.59)+0.14),vec3f(0.0),vec3f(1.0));
-}
 @fragment fn fs_main(in:VertexOut)->@location(0) vec4f {
- let V=normalize(vec3f(0.0,0.0,5.1)-in.world);
- let base=normalize(in.normal);
- let N=select(-base,base,dot(base,V)>0.0);
- let ndv=max(dot(N,V),0.0);
- let reflected=studio(reflect(-V,N));
- let iridescence=film(ndv,in.uv);
- let tint=mix(vec3f(0.88,0.94,0.97),iridescence,0.42+0.18*pow(1.0-ndv,2.0));
- let fresnel=0.65+0.35*pow(1.0-ndv,5.0);
- let occlusion=0.65+0.35*smoothstep(-0.8,0.8,in.world.z);
- var metal=reflected*tint*fresnel*occlusion;
- metal+=pow(1.0-ndv,3.0)*vec3f(0.1,0.22,0.3)*0.2;
- var color=metal;
- color=pow(tonemap(color),vec3f(1.0/2.2));
- let lattice=in.uv*vec2f(96.0,20.0);
- let cell=fract(lattice);
- let derivative=max(fwidth(lattice),vec2f(0.0001));
- let edges=min(cell,1.0-cell)/derivative;
- let diagonal=abs(cell.x-cell.y)/max(derivative.x+derivative.y,0.0001);
- let wire=1.0-smoothstep(0.25,1.0,min(min(edges.x,edges.y),diagonal));
- let blueprint=vec3f(0.024,0.045,0.059)+wire*vec3f(0.15,0.25,0.29);
- let distance=params.reveal-in.position.x/params.resolution.x;
- let blend=smoothstep(-0.045,0.045,distance)*params.material;
- let glow=exp(-pow(distance/0.024,2.0))*0.055*params.material;
- color=mix(blueprint,color,blend)+vec3f(0.4,0.7,0.8)*glow;
- let fade=smoothstep(0.0,1.0,params.entrance);
- return vec4f(mix(vec3f(0.022,0.034,0.05),color,fade),1.0);
+ let N=normalize(in.normal);
+ let T=normalize(in.tangent-N*dot(in.tangent,N));
+ let B=normalize(cross(N,T))*select(-1.0,1.0,dot(cross(N,T),in.bitangent)>0.0);
+ let mapped=normalize(textureSample(normalMap,normalSampler,in.uv).xyz*2.0-1.0);
+ let bumpNormal=normalize(T*mapped.x+B*mapped.y+N*mapped.z);
+ let pixelColor=lighting(in.world,bumpNormal);
+ let lit=select(in.vertexColor,pixelColor,params.mode>0.5);
+ let shaded=pow(max(lit/(1.0+lit),vec3f(0)),vec3f(1.0/2.2));
+ let lattice=in.uv*vec2f(64,16);
+ let cell=fract(lattice);let width=max(fwidth(lattice),vec2f(0.0001));
+ let edge=min(cell,1.0-cell)/width;
+ let diagonal=abs(cell.x-cell.y)/max(width.x+width.y,0.0001);
+ let wire=1.0-smoothstep(0.25,1.0,min(min(edge.x,edge.y),diagonal));
+ let blueprint=vec3f(0.025,0.043,0.052)+wire*vec3f(0.16,0.25,0.29);
+ let boundary=params.reveal-in.position.x/params.resolution.x;
+ let blend=smoothstep(-0.045,0.045,boundary)*params.material;
+ let glow=exp(-pow(boundary/0.024,2.0))*params.material*0.025;
+ return vec4f(mix(blueprint,shaded,blend)+vec3f(0.4,0.7,0.8)*glow,1);
 }

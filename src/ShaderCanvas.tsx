@@ -1,129 +1,96 @@
 import { useEffect, useRef } from 'react';
-import { init, draw, effect, surface, frame, type Gpu } from 'vgpu';
+import { init, draw, effect, surface, frame, texture, sampler, type Gpu } from 'vgpu';
 import sculpture from './shaders/sculpture.wgsl';
 import atmosphere from './shaders/atmosphere.wgsl';
-import { buildSculpture } from './sculpture';
+import { buildShadingGeometry } from './sculpture';
+import { buildNormalMap } from './normalMap';
 import { cameraFocal, presentationAt, sceneRotation } from './scene';
-import { createFramebuffer, compositeSoftware, renderSoftware, softwareSize, softwareTime } from './software';
 
 export default function ShaderCanvas() {
-  const softwareRef=useRef<HTMLCanvasElement>(null);
-  const gpuRef=useRef<HTMLCanvasElement>(null);
-
+  const classicRef=useRef<HTMLCanvasElement>(null);
+  const programmableRef=useRef<HTMLCanvasElement>(null);
   useEffect(()=>{
-    const cpuCanvas=softwareRef.current!,gpuCanvas=gpuRef.current!;
-    const context=cpuCanvas.getContext('2d',{alpha:false});
+    const canvases=[classicRef.current!,programmableRef.current!];
     const reduced=matchMedia('(prefers-reduced-motion: reduce)');
-    let canceled=false,gpuFailed=false,raf=0,dirty=true;
-    let gpu: Gpu | undefined,vertexBuffer: GPUBuffer | undefined;
-    let drawGpu: ((pose:number[],reveal:number,material:number)=>void) | undefined;
-    let softwareFrame=createFramebuffer(1,1);
-    let wireFrame=createFramebuffer(1,1),outputFrame=createFramebuffer(1,1);
-    let image=new ImageData(softwareFrame.pixels,1,1);
-    let lastSample=-1,elapsed=0,last=0,lastReveal=-1,lastMaterial=-1;
-
-    const resize=()=>{
-      const bounds=cpuCanvas.getBoundingClientRect();
-      const [width,height]=softwareSize(bounds.width,bounds.height);
-      if(width!==softwareFrame.width||height!==softwareFrame.height){
-        softwareFrame=createFramebuffer(width,height);
-        wireFrame=createFramebuffer(width,height);outputFrame=createFramebuffer(width,height);
-        image=new ImageData(outputFrame.pixels,width,height);
-        cpuCanvas.width=width;cpuCanvas.height=height;
-      }
-      dirty=true;
-    };
+    let canceled=false,failed=false,raf=0,dirty=true;
+    let gpu:Gpu|undefined,vertexBuffer:GPUBuffer|undefined;
+    const resize=()=>{dirty=true;};
     const observer=new ResizeObserver(resize);
-    observer.observe(cpuCanvas);
-    resize();
-    const motionChanged=()=>{dirty=true;};
-    reduced.addEventListener('change',motionChanged);
-
-    const failGpu=(cause:unknown)=>{
-      if(canceled||gpuFailed)return;
-      gpuFailed=true;drawGpu=undefined;
-      gpuCanvas.dataset.status='error';
-      gpuCanvas.setAttribute('aria-label','modern rendering unavailable. use a browser with webgpu and hardware acceleration enabled. the software renderer remains active on the left.');
-      console.error('modern visualization unavailable:',cause);
+    canvases.forEach(c=>observer.observe(c));
+    reduced.addEventListener('change',resize);
+    const fail=(cause:unknown)=>{
+      if(canceled||failed)return;
+      failed=true;cancelAnimationFrame(raf);
+      canvases.forEach(c=>{c.dataset.status='error';c.setAttribute('aria-label','webgpu unavailable. use a browser with hardware acceleration enabled.');});
+      console.error('visualization unavailable:',cause);
     };
-
-    async function startGpu(){
-      try {
-        gpu=await init();
-        if(canceled){gpu.dispose();return;}
-        gpu.onError(failGpu);
-        void gpu.lost.then(info=>{if(info.reason!=='destroyed')failGpu(info.message);});
-        const screen=surface(gpu,gpuCanvas,{dpr:[1,1.75],depth:true,msaa:4,clearColor:[0.02,0.03,0.055,1]});
-        const data=buildSculpture();
+    async function start(){
+      try{
+        gpu=await init();if(canceled){gpu.dispose();return;}
+        gpu.onError(fail);
+        void gpu.lost.then(info=>{if(info.reason!=='destroyed')fail(info.message);});
+        const data=buildShadingGeometry();
         vertexBuffer=gpu.gpu.createBuffer({size:data.byteLength,usage:GPUBufferUsage.VERTEX|GPUBufferUsage.COPY_DST});
         gpu.gpu.queue.writeBuffer(vertexBuffer,0,new Uint8Array(data.buffer as ArrayBuffer));
-        const params=(pose:number[],reveal:number,material:number)=>({resolution:screen.size,focal:cameraFocal(screen.size[0]/screen.size[1]),entrance:1,pose,reveal,material});
-        const mesh=draw(gpu,{
-          shader:sculpture,
-          geometry:{vertexCount:data.length/8,vertexBuffers:[vertexBuffer],vertexBufferLayouts:[{arrayStride:32,attributes:[{shaderLocation:0,offset:0,format:'float32x3'},{shaderLocation:1,offset:12,format:'float32x3'},{shaderLocation:2,offset:24,format:'float32x2'}]}]},
-          cull:'none',depth:{write:true,compare:'less'},set:{params:params(sceneRotation(0),0,1)},
+        const normalMap=texture(gpu,{kind:'2d',size:[512,512],format:'rgba8unorm',usage:['texture_binding','copy_dst']});
+        gpu.gpu.queue.writeTexture({texture:normalMap.gpu},buildNormalMap(),{bytesPerRow:512*4},[512,512]);
+        const normalSampler=sampler(gpu,{minFilter:'linear',magFilter:'linear',addressModeU:'repeat',addressModeV:'repeat'});
+        const geometry={vertexCount:data.length/14,vertexBuffers:[vertexBuffer],vertexBufferLayouts:[{arrayStride:56,attributes:[{shaderLocation:0,offset:0,format:'float32x3' as const},{shaderLocation:1,offset:12,format:'float32x3' as const},{shaderLocation:2,offset:24,format:'float32x2' as const},{shaderLocation:3,offset:32,format:'float32x3' as const},{shaderLocation:4,offset:44,format:'float32x3' as const}]}]};
+        const views=canvases.map((canvas,mode)=>{
+          const target=surface(gpu!,canvas,{dpr:[1,1.75],depth:true,msaa:4});
+          const params=(time:number)=>{
+            const view=reduced.matches?{reveal:1,material:1,poseTime:0}:presentationAt(time);
+            return {resolution:target.size,focal:cameraFocal(target.size[0]/target.size[1]),mode,pose:sceneRotation(view.poseTime),reveal:view.reveal,material:view.material,time:reduced.matches?0:time};
+          };
+          const mesh=draw(gpu!,{shader:sculpture,geometry,cull:'none',depth:{write:true,compare:'less'},set:{params:params(0),normalMap,normalSampler}});
+          const background=effect(gpu!,atmosphere,{set:{params:params(0)}});
+          return {target,params,mesh,background};
         });
-        const background=effect(gpu,atmosphere,{set:{params:params(sceneRotation(0),0,1)}});
-        await Promise.all([mesh.compile(screen),background.compile(screen)]);
-        if(canceled||gpuFailed)return;
+        await Promise.all(views.flatMap(v=>[v.mesh.compile(v.target),v.background.compile(v.target)]));
+        if(canceled||failed)return;
+        canvases.forEach(c=>{c.dataset.status='ready';});
+        let elapsed=0,last=0;
         const device=gpu;
-        drawGpu=(pose,reveal,material)=>{
-          frame(device,f=>{
-            const values={params:params(pose,reveal,material)};
-            background.set(values);mesh.set(values);
-            f.pass(screen,p=>{p.draw(background);p.draw(mesh);});
-          });
-        };
-        gpuCanvas.dataset.status='ready';dirty=true;
-      }catch(cause){failGpu(cause);}
+        function render(now:number){
+          if(canceled||failed)return;
+          const dt=last?Math.min((now-last)/1000,0.05):0;last=now;
+          if(!document.hidden){
+            if(!reduced.matches)elapsed+=dt;
+            if(dirty||!reduced.matches){
+              try{
+                frame(device,f=>{for(const v of views){
+                  const values={params:v.params(elapsed)};
+                  v.mesh.set(values);v.background.set(values);
+                  f.pass(v.target,p=>{p.draw(v.background);p.draw(v.mesh);});
+                }});
+              }catch(cause){fail(cause);return;}
+              dirty=false;
+            }
+          }
+          raf=requestAnimationFrame(render);
+        }
+        raf=requestAnimationFrame(render);
+      }catch(cause){fail(cause);}
     }
-
-    function render(now:number){
-      if(canceled)return;
-      const dt=last?Math.min((now-last)/1000,0.05):0;
-      last=now;
-      if(!document.hidden){
-        if(!reduced.matches)elapsed+=dt;
-        const view=reduced.matches?{reveal:1,poseTime:0,sweeping:false,material:1}:presentationAt(elapsed);
-        const sample=softwareTime(view.poseTime);
-        if(context&&(dirty||sample!==lastSample)){
-          renderSoftware(softwareFrame,sceneRotation(sample));
-          renderSoftware(wireFrame,sceneRotation(sample),true);
-          lastSample=sample;
-          cpuCanvas.dataset.status='ready';
-        }
-        if(context&&(dirty||!reduced.matches||view.reveal!==lastReveal||view.material!==lastMaterial)){
-          compositeSoftware(outputFrame,softwareFrame,wireFrame,view.reveal,view.material);
-          context.putImageData(image,0,0);
-          lastReveal=view.reveal;lastMaterial=view.material;
-        }
-        if(drawGpu&&(dirty||!reduced.matches)){
-          try{drawGpu(sceneRotation(view.poseTime),view.reveal,view.material);}catch(cause){failGpu(cause);}
-        }
-        dirty=false;
-      }
-      raf=requestAnimationFrame(render);
-    }
-    void startGpu();
-    raf=requestAnimationFrame(render);
-    return()=>{
-      canceled=true;cancelAnimationFrame(raf);observer.disconnect();reduced.removeEventListener('change',motionChanged);
-      vertexBuffer?.destroy();gpu?.dispose();
-    };
+    void start();
+    return()=>{canceled=true;cancelAnimationFrame(raf);observer.disconnect();reduced.removeEventListener('change',resize);vertexBuffer?.destroy();gpu?.dispose();};
   },[sculpture,atmosphere]);
 
-  return <main className="comparison" aria-label="the same sculpture rendered with constrained software graphics and modern gpu shading, transforming from wireframe to finished materials in a synchronized sweep">
-    <div className="panel software-panel">
-      <canvas ref={softwareRef} className="software-canvas" role="img" data-status="loading"
-        aria-label="early real-time software rendering: 768 flat-shaded triangles, 16 colors, a 320-pixel framebuffer limit and 12 updates per second">
-        a low-resolution sculpture rasterized on the cpu.
-      </canvas>
+  return <main className="experience">
+    <header className="comparison-heading">
+      <h1>gpu shading: geforce 256 <span>(1999)</span> <i>vs</i> geforce3 <span>(2001)</span></h1>
+      <p>fixed-function vertex lighting → programmable per-pixel bump mapping</p>
+    </header>
+    <div className="comparison">
+      <figure className="panel">
+        <canvas ref={classicRef} role="img" data-status="loading" aria-label="geforce 256-style lighting. blinn–phong lighting is calculated at vertices, then colors interpolate across triangles."/>
+        <figcaption><h2>lighting at vertices</h2><p>blinn–phong · gouraud interpolation</p></figcaption>
+      </figure>
+      <figure className="panel">
+        <canvas ref={programmableRef} role="img" data-status="loading" aria-label="geforce3-style shading. a tangent-space normal map adds surface grooves to per-pixel blinn–phong lighting without changing the mesh."/>
+        <figcaption><h2>lighting at each pixel</h2><p>blinn–phong · tangent-space normal mapping</p></figcaption>
+      </figure>
     </div>
-    <div className="panel gpu-panel">
-      <canvas ref={gpuRef} className="shader-canvas" role="img" data-status="loading"
-        aria-label="modern vgpu rendering: the same sculpture with smooth geometry, iridescent metal, studio reflections and antialiasing">
-        the same sculpture rendered with webgpu.
-      </canvas>
-    </div>
+    <footer><p>same geometry, lights and motion. the grooves change the lighting—not the shape.</p><small>technique recreation on modern hardware · the sweep illustrates shading, not execution order</small></footer>
   </main>;
 }

@@ -1,33 +1,26 @@
-# software / gpu
+# gpu shading: geforce 256 (1999) vs geforce3 (2001)
 
-one sculpture, two rendering pipelines. no visible interface.
+one sculpture compares fixed-function-style vertex lighting with programmable per-pixel bump mapping.
+
+- left: blinn–phong lighting at vertices, with gouraud color interpolation.
+- right: per-fragment blinn–phong lighting with a sampled tangent-space normal map. grooves change surface normals, not geometry.
+- both: identical geometry, lights, resolution policy, antialiasing and continuously synchronized motion. a feathered wireframe-to-material sweep illustrates shading, not gpu execution order.
+
+this recreates techniques associated with the transition from geforce 256's fixed-function transform and lighting to geforce3's programmable vertex and pixel shading. both sides actually run modern wgsl through vgpu/webgpu. it is not a hardware emulator, performance benchmark, or claim that bump mapping first appeared in 2001. light count, precision and tone mapping are illustrative rather than exact period hardware constraints.
+
+historical reference: [nvidia's cg tutorial, gpu generations](https://download.nvidia.com/developer/cg/Cg_Tutorial/Chapter_1.pdf).
 
 ```sh
 npm install
 npm run dev
-```
-
-left: an intentionally constrained early-real-time software renderer. javascript transforms, projects, flat-shades and rasterizes 768 triangles into a depth-tested pixel buffer. the image uses 16 colors including its background, a maximum dimension of 320 pixels, and 12 scene updates per second. canvas 2d only presents the completed pixels, with nearest-neighbor scaling. no shader material, reflections, textures, antialiasing, or gpu postprocessing.
-
-right: vgpu/webgpu renders 73,728 triangles with smooth normals, procedural studio reflections, iridescent metal, multisampling and display-rate animation.
-
-both use the same parametric sculpture, camera and animation clock. the software side samples the shared motion at 12 hz. the layout stays side by side at every screen size.
-
-a synchronized, feathered sweep transforms visible wireframes into finished materials from left to right while the pose stays still. the finished image holds, both views turn with eased motion, then the material gently fades back to wireframe. there is no full-height bar or blank clearing pass. the sweep is a presentation device, not a literal picture of either renderer's work. the software presentation blend stays within the same 16-color palette. reduced motion skips the sweep and freezes both views fully visible.
-
-the left is an illustrative early-1990s-style real-time profile, not a hardware emulator or a claim that all pre-gpu rendering had these limits. sophisticated offline cpu rendering also existed. modern browser compositing may use the gpu to display the completed software image.
-
-webgpu requires a supported browser with hardware acceleration. the software side remains active if webgpu is unavailable; the right canvas reports its failure through its accessible description and the console.
-
-```sh
 npm test
 npm run build
 ```
 
-- `src/software.ts`: palette, software mesh, flat lighting, triangle rasterizer and depth buffer.
-- `src/scene.ts`: shared rotation, camera and material-sweep timeline.
-- `src/sculpture.ts`: parametric surface and detailed gpu mesh.
-- `src/ShaderCanvas.tsx`: two canvases, shared clock and resource lifecycle.
-- `src/shaders/sculpture.wgsl`: iridescent metal and procedural studio reflections.
+requires webgpu and hardware acceleration. reduced motion presents both finished materials without animation.
 
-the old gallery is preserved on `feat/shader-gallery` at `be42b8d`; the moving reveal is preserved at `54d174b`. this comparison lives on `feat/single-shader-reveal`.
+- `src/sculpture.ts`: shared parametric mesh and tangent frames.
+- `src/normalMap.ts`: periodic tangent-space normal texture.
+- `src/scene.ts`: shared camera, rotation and sweep timeline.
+- `src/ShaderCanvas.tsx`: shared gpu, two canvases and lifecycle.
+- `src/shaders/sculpture.wgsl`: vertex and fragment lighting comparison.
