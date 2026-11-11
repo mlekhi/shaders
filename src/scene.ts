@@ -31,5 +31,5 @@ export function transformPoint(p: Point3, m: readonly number[]): Point3 {
 }
 
 export function cameraFocal(aspect: number): number {
-  return Math.min(2.9,aspect*2.7);
+  return Math.min(2.9,aspect*3.0);
 }

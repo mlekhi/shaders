@@ -1,28 +1,7 @@
-:root { color-scheme: dark; background: #05080e; color:#d6e0e5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
-* { box-sizing: border-box; }
-html, body, #root { margin: 0; width: 100%; height: 100%; }
-.experience { position:relative; height:100dvh; min-height:560px; display:flex; flex-direction:column; overflow:hidden; }
-.comparison-heading { text-align:center; padding:34px 20px 0; z-index:1; }
-h1,h2,p { margin:0; }
-h1 { font-size:clamp(16px,2.1vw,25px); font-weight:500; letter-spacing:-0.6px; }
-h1 span { color:#81929e; font-weight:400; }
-h1 i { font-size:12px; font-style:normal; color:#52616e; margin:0 15px; }
-.comparison-heading p { margin-top:12px; color:#8295a3; font-size:12px; line-height:1.6; }
-.comparison { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); flex:1; min-height:0; }
+:root { color-scheme:dark; background:#030509; }
+* { box-sizing:border-box; }
+html,body,#root { margin:0; width:100%; height:100%; overflow:hidden; }
+.experience { height:100dvh; width:100%; }
+.comparison { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); width:100%; height:100%; }
 .panel { position:relative; margin:0; overflow:hidden; min-width:0; min-height:0; }
 .panel canvas { display:block; width:100%; height:100%; }
-figcaption { position:absolute; bottom:18px; left:12px; right:12px; text-align:center; pointer-events:none; }
-h2 { font-size:14px; font-weight:500; letter-spacing:-0.2px; }
-figcaption p { margin-top:7px; font-size:11px; color:#7e929f; line-height:1.5; }
-footer { text-align:center; padding:15px 20px 27px; color:#9cabb5; font-size:12px; line-height:1.6; }
-footer small { display:block; margin-top:7px; font-size:10px; color:#566874; }
-@media(max-width:600px) {
- .comparison-heading { padding-top:26px; }
- h1 i { margin:0 5px; font-size:10px; }
- .comparison-heading p { font-size:10px; max-width:300px; margin:10px auto 0; }
- figcaption { bottom:30px; }
- h2 { font-size:12px; }
- figcaption p { font-size:10px; max-width:150px; margin:7px auto 0; }
- footer { font-size:11px; padding-bottom:22px; }
- footer small { font-size:9px; }
-}

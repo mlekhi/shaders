@@ -77,20 +77,13 @@ export default function ShaderCanvas() {
   },[sculpture,atmosphere]);
 
   return <main className="experience">
-    <header className="comparison-heading">
-      <h1>gpu shading: geforce 256 <span>(1999)</span> <i>vs</i> geforce3 <span>(2001)</span></h1>
-      <p>fixed-function vertex lighting → programmable per-pixel bump mapping</p>
-    </header>
     <div className="comparison">
       <figure className="panel">
         <canvas ref={classicRef} role="img" data-status="loading" aria-label="geforce 256-style lighting. blinn–phong lighting is calculated at vertices, then colors interpolate across triangles."/>
-        <figcaption><h2>lighting at vertices</h2><p>blinn–phong · gouraud interpolation</p></figcaption>
       </figure>
       <figure className="panel">
         <canvas ref={programmableRef} role="img" data-status="loading" aria-label="geforce3-style shading. a tangent-space normal map adds surface grooves to per-pixel blinn–phong lighting without changing the mesh."/>
-        <figcaption><h2>lighting at each pixel</h2><p>blinn–phong · tangent-space normal mapping</p></figcaption>
       </figure>
     </div>
-    <footer><p>same geometry, lights and motion. the grooves change the lighting—not the shape.</p><small>technique recreation on modern hardware · the sweep illustrates shading, not execution order</small></footer>
   </main>;
 }
